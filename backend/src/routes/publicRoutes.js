@@ -1,0 +1,6 @@
+import { Router } from 'express';
+import { supabase } from '../config/supabase.js';
+const router = Router();
+router.post('/requests', async (req,res,next) => { try { const { fullName, phone, email, location, workType, contactMethod, description, budget, preferredStartDate, projectId } = req.body; if(!fullName||!phone||!email||!location||!workType||!description) return res.status(400).json({success:false,message:'Please complete all required fields.'}); const { error } = await supabase.from('requests').insert({project_id:projectId||null,full_name:fullName,phone,email,location,work_type:workType,contact_method:contactMethod||'phone',description,budget:budget||null,preferred_start_date:preferredStartDate||null}); if(error) throw error; res.status(201).json({success:true,message:'Request submitted successfully.'}); } catch(error){ next(error); } });
+router.post('/contact', async (req,res,next) => { try { const { name, email, phone, subject, message } = req.body; if(!name||!email||!subject||!message) return res.status(400).json({success:false,message:'Please complete all required fields.'}); const { error } = await supabase.from('contact_messages').insert({name,email,phone:phone||null,subject,message}); if(error) throw error; res.status(201).json({success:true,message:'Message sent successfully.'}); } catch(error){ next(error); } });
+export default router;

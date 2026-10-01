@@ -1,4 +1,5 @@
-const base = (import.meta.env.VITE_API_URL || 'http://localhost:5001/api').replace(/\/$/, '');
+const configuredBase = (import.meta.env.VITE_API_URL || 'http://localhost:5001/api').replace(/\/$/, '');
+const base = configuredBase.endsWith('/api') ? configuredBase : `${configuredBase}/api`;
 export async function getProjects(category) { const url = new URL(`${base}/projects`); if(category && category !== 'All') url.searchParams.set('category', category); const response = await fetch(url); if(!response.ok) throw new Error('Unable to load projects.'); return (await response.json()).projects; }
 function visitorIdentifier() { const existing = localStorage.getItem('impact-visitor'); if (existing) return existing; const created = crypto.randomUUID(); localStorage.setItem('impact-visitor', created); return created; }
 export async function getProject(id) { const response = await fetch(`${base}/projects/${id}?visitorIdentifier=${encodeURIComponent(visitorIdentifier())}`); if(!response.ok) throw new Error('Unable to load this project.'); return (await response.json()).project; }

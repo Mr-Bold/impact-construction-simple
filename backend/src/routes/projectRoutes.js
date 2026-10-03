@@ -93,6 +93,74 @@ router.post('/', requireAuth, requireAdmin, async (req, res, next) => {
     next(error);
   }
 });
+router.delete('/:id', requireAuth, requireAdmin, async (req, res, next) => {
+  try {
+    const { data: project, error: projectError } = await supabase
+      .from('projects')
+      .select('id')
+      .eq('id', req.params.id)
+      .maybeSingle();
+    if (projectError) throw projectError;
+    if (!project) {
+      return res.status(404).json({ success: false, message: 'Project not found.' });
+    }
+
+    const { data: media, error: mediaError } = await supabase
+      .from('project_media')
+      .select('media_url, media_type')
+      .eq('project_id', project.id);
+    if (mediaError) throw mediaError;
+
+    const { data: deletedProject, error: deleteError } = await supabase
+      .from('projects')
+      .delete()
+      .eq('id', project.id)
+      .select('id')
+      .maybeSingle();
+    if (deleteError) throw deleteError;
+    if (!deletedProject) {
+      return res.status(404).json({ success: false, message: 'Project not found.' });
+    }
+
+    const storageObjects = new Map([
+      ['project-images', new Set()],
+      ['project-videos', new Set()],
+    ]);
+    let unrecognizedMedia = 0;
+    for (const item of media || []) {
+      const bucket = item.media_type === 'video' ? 'project-videos' : 'project-images';
+      try {
+        const pathname = new URL(item.media_url).pathname;
+        const publicPrefix = `/storage/v1/object/public/${bucket}/`;
+        if (!pathname.startsWith(publicPrefix)) {
+          unrecognizedMedia += 1;
+          continue;
+        }
+        storageObjects.get(bucket).add(decodeURIComponent(pathname.slice(publicPrefix.length)));
+      } catch {
+        unrecognizedMedia += 1;
+      }
+    }
+
+    const cleanupFailures = [];
+    for (const [bucket, paths] of storageObjects) {
+      if (!paths.size) continue;
+      const { error } = await supabase.storage.from(bucket).remove([...paths]);
+      if (error) {
+        console.error(`Unable to remove project media from ${bucket}.`, error);
+        cleanupFailures.push(bucket);
+      }
+    }
+
+    const cleanupWarning =
+      cleanupFailures.length || unrecognizedMedia
+        ? `Project deleted, but some media files may remain${cleanupFailures.length ? ` in ${cleanupFailures.join(' and ')}` : ''}${unrecognizedMedia ? ` (${unrecognizedMedia} file${unrecognizedMedia === 1 ? '' : 's'} had an unrecognized URL)` : ''}.`
+        : '';
+    res.json({ success: true, message: 'Project deleted.', cleanupWarning });
+  } catch (error) {
+    next(error);
+  }
+});
 router.post('/:id/media', requireAuth, requireAdmin, parseProjectMedia, async (req, res, next) => {
   try {
     const file = req.file;

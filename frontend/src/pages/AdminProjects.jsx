@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowUpRight, ExternalLink, FolderKanban, ImagePlus, Plus, Search, Upload, X } from 'lucide-react';
+import { ArrowUpRight, ExternalLink, FolderKanban, ImagePlus, Plus, Search, Trash2, Upload, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import AdminSidebar from '../components/AdminSidebar';
 import { authClient } from '../services/auth';
-import { createAdminProject, getAdminProjects, uploadProjectMedia } from '../services/api';
+import { createAdminProject, deleteAdminProject, getAdminProjects, uploadProjectMedia } from '../services/api';
 
 const allowedMediaTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'video/mp4', 'video/webm', 'video/quicktime']);
 const maxMediaSize = 50 * 1024 * 1024;
@@ -39,6 +39,7 @@ export default function AdminProjects() {
 	const [projects, setProjects] = useState([]);
 	const [source, setSource] = useState('loading');
 	const [loadError, setLoadError] = useState('');
+	const [actionError, setActionError] = useState('');
 	const [search, setSearch] = useState('');
 	const [category, setCategory] = useState('All');
 	const [formOpen, setFormOpen] = useState(false);
@@ -49,6 +50,7 @@ export default function AdminProjects() {
 	const [notice, setNotice] = useState('');
 	const [isSaving, setIsSaving] = useState(false);
 	const [uploadState, setUploadState] = useState(null);
+	const [deletingProjectId, setDeletingProjectId] = useState(null);
 
 	const refreshProjects = async () => {
 		const accessToken = await getAccessToken();
@@ -173,6 +175,28 @@ export default function AdminProjects() {
 		}
 	};
 
+	const handleDeleteProject = async (project) => {
+		const confirmed = window.confirm(
+			`Permanently delete "${project.title}"? Its photos, videos, reviews, ratings, and likes will be removed. Related requests will remain without a project link.`,
+		);
+		if (!confirmed) return;
+
+		setNotice('');
+		setActionError('');
+		setDeletingProjectId(project.id);
+		try {
+			const accessToken = await getAccessToken();
+			const result = await deleteAdminProject(project.id, accessToken);
+			setProjects((current) => current.filter((item) => item.id !== project.id));
+			setNotice(result.cleanupWarning || `"${project.title}" was deleted.`);
+		} catch (requestError) {
+			setNotice('');
+			setActionError(requestError.message || 'Unable to delete project.');
+		} finally {
+			setDeletingProjectId(null);
+		}
+	};
+
 	return (
 		<div className="admin-layout">
 			<AdminSidebar />
@@ -219,6 +243,7 @@ export default function AdminProjects() {
 				)}
 
 				{notice && <p className="admin-upload-notice" role="status">{notice}</p>}
+				{actionError && <p className="admin-settings-alert is-error" role="alert">{actionError}</p>}
 				{uploadState && <div className="admin-upload-progress" role="status"><span><Upload size={15} /> Uploading {uploadState.current} of {uploadState.total}: {uploadState.fileName}</span><progress value={uploadState.current - 1} max={uploadState.total} /></div>}
 				{loadError && <p className="admin-settings-alert is-error" role="alert">{loadError}{loadError.includes('Admin access required') && ' Configure this account with the admin role or add its email to ADMIN_EMAILS on the backend.'}</p>}
 
@@ -243,6 +268,17 @@ export default function AdminProjects() {
 									<div className="admin-project-row-actions">
 										<label className="admin-row-upload" aria-disabled={projectUpload} title="Add photos or videos"><ImagePlus size={15} /><span>{projectUpload ? `${uploadState.current}/${uploadState.total}` : 'Add media'}</span><input type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime" multiple disabled={projectUpload} onChange={(event) => handleAddMedia(project, event)} /></label>
 										<Link to={`/projects/${project.slug || project.id}`} aria-label={`View ${project.title}`} title={`View ${project.title}`}><ExternalLink size={16} /></Link>
+										<button
+											type="button"
+											className="admin-icon-button admin-delete-project"
+											aria-label={`Delete ${project.title}`}
+											title={`Delete ${project.title}`}
+											disabled={Boolean(deletingProjectId) || projectUpload}
+											aria-busy={deletingProjectId === project.id}
+											onClick={() => handleDeleteProject(project)}
+										>
+											{deletingProjectId === project.id ? '…' : <Trash2 size={15} />}
+										</button>
 									</div>
 								</article>
 							);

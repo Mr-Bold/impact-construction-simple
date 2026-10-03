@@ -9,8 +9,8 @@ A premium, database-driven construction and handy-work portfolio for showcasing 
 
 ## Local setup
 1. Run `database/schema.sql` in Supabase SQL Editor.
-2. Copy `backend/.env.example` to `backend/.env` and add Supabase values.
-3. Copy `frontend/.env.example` to `frontend/.env`.
+2. Copy `backend/.env.example` to `backend/.env` and add Supabase values, including the admin email list (`ADMIN_EMAILS`).
+3. Copy `frontend/.env.example` to `frontend/.env` and add the same admin email in `VITE_ADMIN_EMAILS` for route protection.
 4. Run `npm install` inside both `frontend` and `backend`.
 5. Start the API with `npm run dev` inside `backend`.
 6. Start Vite with `npm run dev` inside `frontend`.
@@ -24,3 +24,4 @@ Create public buckets named `company-assets`, `project-images`, and `project-vid
 ## Routes
 Visitor routes: `/`, `/projects`, `/projects/:projectId`, `/contact`.
 Admin routes: `/admin/login`, `/admin/dashboard`, `/admin/projects`, `/admin/requests`, `/admin/reviews`.
+The admin inbox and moderation data are served by authenticated backend endpoints at `/api/admin/requests` and `/api/admin/reviews`; both require an admin account configured with `ADMIN_EMAILS`.

@@ -7,12 +7,15 @@ export default function Header() {
   const settings = useSettings();
   return (
     <header className="site-header">
+      <a className="skip-link" href="#main-content">
+        Skip to main content
+      </a>
       <Link to="/" className="logo" onClick={() => setOpen(false)}>
         {settings.logo_url ? (
           <img
             className="logo-image"
             src={settings.logo_url}
-            alt={settings.company_name}
+            alt=""
           />
         ) : (
           <span className="logo-mark">I</span>
@@ -24,12 +27,19 @@ export default function Header() {
       </Link>
       <button
         className="menu-button"
+        type="button"
         onClick={() => setOpen(!open)}
-        aria-label="Toggle navigation"
+        aria-label={open ? "Close navigation" : "Open navigation"}
+        aria-expanded={open}
+        aria-controls="primary-navigation"
       >
         {open ? <X /> : <Menu />}
       </button>
-      <nav className={open ? "nav open" : "nav"}>
+      <nav
+        id="primary-navigation"
+        className={open ? "nav open" : "nav"}
+        aria-label="Main navigation"
+      >
         <NavLink to="/projects" onClick={() => setOpen(false)}>
           Our work
         </NavLink>

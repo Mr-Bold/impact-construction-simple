@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { X, ArrowUpRight } from "lucide-react";
 import { submitRequest } from "../services/api";
 export default function RequestModal({ project, onClose }) {
+  const modalRef = useRef(null);
   const [values, setValues] = useState({
     fullName: "",
     phone: "",
@@ -20,6 +21,43 @@ export default function RequestModal({ project, onClose }) {
   });
   const update = (e) =>
     setValues((v) => ({ ...v, [e.target.name]: e.target.value }));
+  useEffect(() => {
+    const previousFocus = document.activeElement;
+    modalRef.current
+      ?.querySelector("input:not([disabled]), button:not([disabled])")
+      ?.focus();
+    return () => {
+      if (previousFocus instanceof HTMLElement && previousFocus.isConnected) {
+        previousFocus.focus();
+      }
+    };
+  }, []);
+  const handleDialogKeyDown = (event) => {
+    if (event.key === "Escape") {
+      onClose();
+      return;
+    }
+    if (event.key !== "Tab") return;
+
+    const focusable = Array.from(
+      event.currentTarget.querySelectorAll(
+        'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      ),
+    ).filter((element) => element.offsetParent !== null);
+    if (!focusable.length) {
+      event.preventDefault();
+      return;
+    }
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
   const submit = async (e) => {
     e.preventDefault();
     setState({ loading: true, error: "", done: false });
@@ -39,18 +77,25 @@ export default function RequestModal({ project, onClose }) {
     >
       <div
         className="modal"
+        ref={modalRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="request-title"
+        onKeyDown={handleDialogKeyDown}
       >
-        <button className="modal-close" onClick={onClose} aria-label="Close">
+        <button
+          className="modal-close"
+          type="button"
+          onClick={onClose}
+          aria-label="Close request form"
+        >
           <X />
         </button>
         {state.done ? (
           <div className="modal-success">
             <span className="success-mark">✓</span>
             <p className="eyebrow">Request received</p>
-            <h2>
+            <h2 id="request-title">
               We’ll take it
               <br />
               <em>from here.</em>
@@ -59,7 +104,7 @@ export default function RequestModal({ project, onClose }) {
               Our team has received your request for similar work and will be in
               touch shortly.
             </p>
-            <button className="solid-button" onClick={onClose}>
+            <button className="solid-button" type="button" onClick={onClose}>
               Done <ArrowUpRight size={16} />
             </button>
           </div>
@@ -135,8 +180,8 @@ export default function RequestModal({ project, onClose }) {
                   onChange={update}
                 />
               </label>
-              {state.error && <p className="form-error">{state.error}</p>}
-              <button className="solid-button" disabled={state.loading}>
+              {state.error && <p className="form-error" role="alert">{state.error}</p>}
+              <button className="solid-button" type="submit" disabled={state.loading}>
                 {state.loading ? "Sending..." : "Send request"}{" "}
                 <ArrowUpRight size={16} />
               </button>

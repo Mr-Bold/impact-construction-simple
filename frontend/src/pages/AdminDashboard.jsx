@@ -10,7 +10,8 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import AdminSidebar from "../components/AdminSidebar";
-import { getProjects } from "../services/api";
+import { authClient } from "../services/auth";
+import { getAdminRequests, getAdminReviews, getProjects } from "../services/api";
 import { demoProjects } from "../data/demoProjects";
 
 const quickActions = [
@@ -27,6 +28,12 @@ const projectImage = (project) => project.image
 export default function AdminDashboard() {
   const [projects, setProjects] = useState([]);
   const [projectsSource, setProjectsSource] = useState("loading");
+  const [requests, setRequests] = useState([]);
+  const [requestsState, setRequestsState] = useState("loading");
+  const [requestsError, setRequestsError] = useState("");
+  const [reviews, setReviews] = useState([]);
+  const [reviewsState, setReviewsState] = useState("loading");
+  const [reviewsError, setReviewsError] = useState("");
 
   useEffect(() => {
     let isMounted = true;
@@ -44,11 +51,57 @@ export default function AdminDashboard() {
     return () => { isMounted = false; };
   }, []);
 
+  useEffect(() => {
+    let isMounted = true;
+    const loadInbox = async () => {
+      try {
+        if (!authClient) throw new Error("Supabase authentication is not configured.");
+        const { data, error } = await authClient.auth.getSession();
+        if (error) throw error;
+        if (!data.session?.access_token) throw new Error("Your admin session has expired. Sign in again.");
+
+        const [requestResult, reviewResult] = await Promise.allSettled([
+          getAdminRequests(data.session.access_token),
+          getAdminReviews(data.session.access_token),
+        ]);
+        if (!isMounted) return;
+        if (requestResult.status === "fulfilled") {
+          setRequests(requestResult.value);
+          setRequestsState("live");
+        } else {
+          setRequestsError(requestResult.reason.message || "Unable to load work requests.");
+          setRequestsState("error");
+        }
+        if (reviewResult.status === "fulfilled") {
+          setReviews(reviewResult.value);
+          setReviewsState("live");
+        } else {
+          setReviewsError(reviewResult.reason.message || "Unable to load reviews.");
+          setReviewsState("error");
+        }
+      } catch (error) {
+        if (!isMounted) return;
+        const message = error.message || "Unable to load admin inbox data.";
+        setRequestsError(message);
+        setReviewsError(message);
+        setRequestsState("error");
+        setReviewsState("error");
+      }
+    };
+    loadInbox();
+    return () => { isMounted = false; };
+  }, []);
+
+  const newRequestCount = requests.filter((request) => request.status === "new").length;
+  const pendingReviewCount = reviews.filter((review) => review.status === "pending").length;
+  const activeJobCount = requests.filter((request) => request.status === "in_progress").length;
+  const recentRequests = requests.slice(0, 3);
+
   const stats = [
     { label: "Total projects", value: projectsSource === "loading" ? "—" : String(projects.length).padStart(2, "0"), detail: projectsSource === "sample" ? "Sample portfolio" : "View all projects", href: "/admin/projects", icon: FolderKanban },
-    { label: "New requests", value: "—", detail: "Inbox unavailable", href: "/admin/requests", icon: MessageSquare },
-    { label: "Pending reviews", value: "—", detail: "Queue unavailable", href: "/admin/reviews", icon: Star },
-    { label: "Active jobs", value: "—", detail: "Tracking unavailable", href: "/admin/projects", icon: Wrench },
+    { label: "New requests", value: requestsState === "loading" ? "—" : requestsState === "error" ? "!" : String(newRequestCount).padStart(2, "0"), detail: requestsState === "error" ? "Inbox unavailable" : "View requests", href: "/admin/requests", icon: MessageSquare },
+    { label: "Pending reviews", value: reviewsState === "loading" ? "—" : reviewsState === "error" ? "!" : String(pendingReviewCount).padStart(2, "0"), detail: reviewsState === "error" ? "Queue unavailable" : "View reviews", href: "/admin/reviews", icon: Star },
+    { label: "Active jobs", value: requestsState === "loading" ? "—" : requestsState === "error" ? "!" : String(activeJobCount).padStart(2, "0"), detail: requestsState === "error" ? "Inbox unavailable" : "View requests", href: "/admin/requests", icon: Wrench },
   ];
 
   return (
@@ -62,6 +115,9 @@ export default function AdminDashboard() {
           </div>
           <Link className="solid-button dark-button" to="/admin/projects">Manage projects <ArrowUpRight size={16} /></Link>
         </div>
+
+        {requestsError && <p className="admin-settings-alert is-error" role="alert">Requests: {requestsError}</p>}
+        {reviewsError && <p className="admin-settings-alert is-error" role="alert">Reviews: {reviewsError}</p>}
 
         <section className="admin-stats" aria-label="Workspace summary">
           {stats.map(({ label, value, detail, href, icon: Icon }) => (
@@ -80,12 +136,32 @@ export default function AdminDashboard() {
               <h2>Recent requests</h2>
               <Link to="/admin/requests">View all</Link>
             </div>
-            <div className="admin-inbox-empty">
-              <MessageSquare size={23} />
-              <b>Request inbox is not connected yet</b>
-              <p>Customer enquiries will appear here when request management is connected.</p>
-              <Link to="/admin/requests">Open requests <ArrowRight size={14} /></Link>
-            </div>
+            {requestsState === "loading" ? (
+              <div className="admin-inbox-empty" role="status">Loading recent requests…</div>
+            ) : requestsState === "error" ? (
+              <div className="admin-inbox-empty">
+                <MessageSquare size={23} />
+                <b>Could not load requests</b>
+                <p>{requestsError}</p>
+                <Link to="/admin/requests">Open requests <ArrowRight size={14} /></Link>
+              </div>
+            ) : recentRequests.length ? (
+              <div className="admin-dashboard-requests">
+                {recentRequests.map((request) => (
+                  <Link className="admin-dashboard-request" to="/admin/requests" key={request.id}>
+                    <span><b>{request.full_name}</b><small>{request.work_type} · {request.location}</small></span>
+                    <span className={`status-pill is-${request.status}`}>{request.status.replaceAll("_", " ")}</span>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <div className="admin-inbox-empty">
+                <MessageSquare size={23} />
+                <b>No requests yet</b>
+                <p>Customer enquiries submitted through the website will appear here.</p>
+                <Link to="/admin/requests">Open requests <ArrowRight size={14} /></Link>
+              </div>
+            )}
           </section>
 
           <section className="admin-dashboard-panel admin-projects-panel">

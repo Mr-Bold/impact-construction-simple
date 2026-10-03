@@ -8,6 +8,7 @@ export default function ProjectCard({ project, onRequest }) {
           src={project.image || project.project_media?.[0]?.media_url}
           alt={project.title}
           loading="lazy"
+          decoding="async"
         />
         <span className="project-category">{project.category}</span>
       </Link>
@@ -15,7 +16,8 @@ export default function ProjectCard({ project, onRequest }) {
         <div className="project-card-meta">
           <span>{project.location}</span>
           <span className="rating">
-            <Star size={14} fill="currentColor" /> {project.rating || "New"}
+            <Star size={14} fill="currentColor" aria-hidden="true" />{" "}
+            {project.rating || "New"}
           </span>
         </div>
         <h3>{project.title}</h3>

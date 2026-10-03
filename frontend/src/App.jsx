@@ -17,9 +17,10 @@ import AdminSettings from "./pages/AdminSettings";
 import { SettingsProvider } from "./context/SettingsContext";
 export default function App() {
   const location = useLocation();
+  const isAdminRoute = location.pathname.startsWith("/admin");
   return (
     <SettingsProvider><>
-      <Header />
+      {!isAdminRoute && <Header />}
       <AnimatePresence mode="wait" initial>
       <motion.div className="route-layer" key={location.pathname} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.38, ease: [0.22, 1, 0.36, 1] }}>
       <Routes location={location}>
@@ -37,7 +38,7 @@ export default function App() {
       </Routes>
       </motion.div>
       </AnimatePresence>
-      <Footer />
+      {!isAdminRoute && <Footer />}
     </></SettingsProvider>
   );
 }

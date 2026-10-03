@@ -3,6 +3,18 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "scripts": { "start": "node src/server.js", "dev": "node --watch src/server.js" },
-  "dependencies": { "@supabase/supabase-js": "latest", "cors": "latest", "dotenv": "latest", "express": "latest", "helmet": "latest", "morgan": "latest", "zod": "latest" }
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "latest",
+    "cors": "latest",
+    "dotenv": "latest",
+    "express": "latest",
+    "helmet": "latest",
+    "morgan": "latest",
+    "multer": "^2.4.0",
+    "zod": "latest"
+  }
 }

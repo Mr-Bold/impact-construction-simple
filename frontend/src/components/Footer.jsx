@@ -8,7 +8,7 @@ export default function Footer() {
       <div className="footer-top">
         <div>
           <Link to="/" className="logo light">
-            <span className="logo-mark">I</span>
+            {settings.logo_url ? <img className="logo-image" src={settings.logo_url} alt={settings.company_name} /> : <span className="logo-mark">I</span>}
             <span>
               {settings.company_name.toUpperCase()}
               <small>CONSTRUCTION</small>

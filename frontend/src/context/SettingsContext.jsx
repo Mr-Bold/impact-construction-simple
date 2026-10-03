@@ -14,8 +14,10 @@ const defaults = {
   logo_url: "",
 };
 const SettingsContext = createContext(defaults);
+const SettingsUpdateContext = createContext(() => {});
 export function SettingsProvider({ children }) {
   const [settings, setSettings] = useState(defaults);
+  const updateSettings = (updates) => setSettings((current) => ({ ...current, ...updates }));
   useEffect(() => { const favicon = document.querySelector('link[rel="icon"]') || document.head.appendChild(Object.assign(document.createElement('link'), { rel: 'icon' })); if (settings.logo_url) favicon.href = settings.logo_url; document.title = `${settings.company_name} | Built To Last`; }, [settings.company_name, settings.logo_url]);
   useEffect(() => {
     getSettings()
@@ -24,11 +26,16 @@ export function SettingsProvider({ children }) {
   }, []);
   return (
     <SettingsContext.Provider value={settings}>
-      {children}
+      <SettingsUpdateContext.Provider value={updateSettings}>
+        {children}
+      </SettingsUpdateContext.Provider>
     </SettingsContext.Provider>
   );
 }
 export function useSettings() {
   return useContext(SettingsContext);
+}
+export function useUpdateSettings() {
+  return useContext(SettingsUpdateContext);
 }
 export { defaults };
